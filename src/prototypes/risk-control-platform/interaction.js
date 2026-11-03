@@ -168,24 +168,48 @@
     }
 
     function errorHost(btn) {
-        let node = btn;
-        for (let i = 0; i < 5 && node.parentElement; i += 1) node = node.parentElement;
-        let err = node.querySelector(':scope > .rcp-error');
-        if (!err) {
-            err = document.createElement('div');
-            err.className = 'rcp-error';
-            node.appendChild(err);
-        }
+        let err = btn.__rcpErr;
+        if (err && document.body.contains(err)) return err;
+        err = document.createElement('div');
+        err.className = 'rcp-error rcp-error-float';
+        document.body.appendChild(err);
+        btn.__rcpErr = err;
         return err;
     }
 
+    function placeError(btn, err) {
+        const r = btn.getBoundingClientRect();
+        err.style.left = Math.round(r.left) + 'px';
+        err.style.top = Math.round(r.bottom + 4) + 'px';
+    }
+
+    function findFieldHint(btn) {
+        let node = btn;
+        for (let i = 0; i < 7 && node.parentElement; i += 1) {
+            node = node.parentElement;
+            const leaves = $$('*', node).filter((n) => !n.children.length && n.textContent.trim() === 'Please select');
+            if (leaves.length) return leaves[0];
+        }
+        return null;
+    }
+
     function showError(btn, msg) {
+        const hint = findFieldHint(btn);
+        if (hint) {
+            btn.__rcpHint = hint;
+            hint.style.display = 'none';
+        }
         const err = errorHost(btn);
         err.textContent = msg;
         err.style.display = 'block';
+        placeError(btn, err);
     }
 
     function clearError(btn) {
+        if (btn.__rcpHint) {
+            btn.__rcpHint.style.display = '';
+            btn.__rcpHint = null;
+        }
         const err = errorHost(btn);
         err.textContent = '';
         err.style.display = 'none';
@@ -301,9 +325,13 @@
         applyNextState();
     }
 
+    function hideFloatingErrors() {
+        $$('.rcp-error-float').forEach((e) => { e.style.display = 'none'; });
+    }
+
     document.addEventListener('click', closeMenus);
-    window.addEventListener('resize', closeMenus);
-    window.addEventListener('scroll', closeMenus, true);
+    window.addEventListener('resize', () => { closeMenus(); hideFloatingErrors(); });
+    window.addEventListener('scroll', () => { closeMenus(); hideFloatingErrors(); }, true);
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', boot);

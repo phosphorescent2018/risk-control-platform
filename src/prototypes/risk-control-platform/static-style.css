@@ -1914,3 +1914,15 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helv
   75% { transform: translateX(4px); }
 }
 .rcp-shake { animation: rcpShake .35s ease; }
+
+/* 上传错误：贴在上传按钮下方的浮层 */
+.rcp-error-float {
+  position: fixed;
+  z-index: 9999;
+  background: #fff;
+  padding: 2px 8px;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .12);
+  max-width: 560px;
+  margin-top: 0;
+}
