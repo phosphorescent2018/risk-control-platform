@@ -10,6 +10,11 @@
     let currentType = '';
     let uploadedExt = '';
     let conflict = false;
+    let businessId = '';
+    let processorUploaded = false;
+    let modelFileName = '';
+    let processorName = '';
+    const BUSINESS_IDS = ['MTN_Uganda', 'MTN_Ghana', 'MTN_CDI'];
 
     /* ---------- 基础 ---------- */
     function typeBox() {
@@ -43,16 +48,19 @@
     }
 
     function hideHint(el, texts) {
-        let root = el;
-        for (let i = 0; i < 8 && root.parentElement; i += 1) root = root.parentElement;
-        $$('*', root).forEach((n) => {
-            const t = (n.textContent || '').trim();
-            if (!n.children.length && texts.indexOf(t) !== -1) {
-                n.style.display = 'none';
-                const h = n.closest('[id$="_help"]');
+        // 只隐藏离当前控件最近的那一处占位文案，避免把相邻字段的占位一起干掉
+        let node = el;
+        for (let i = 0; i < 8 && node.parentElement; i += 1) {
+            node = node.parentElement;
+            const leaves = $$('*', node).filter((n) => !n.children.length && texts.indexOf((n.textContent || '').trim()) !== -1);
+            if (leaves.length === 1) {
+                leaves[0].style.display = 'none';
+                const h = leaves[0].closest('[id$="_help"]');
                 if (h) h.style.display = 'none';
+                return;
             }
-        });
+            if (leaves.length > 1) return;
+        }
     }
 
     /* ---------- 类型与文件是否匹配 ---------- */
@@ -75,12 +83,71 @@
         return '模型类型与文件格式不一致';
     }
 
+    /* ---------- BusinessID ---------- */
+    function businessBox() {
+        const input = document.getElementById('0_businessId');
+        if (!input) return null;
+        return input.closest('div[class*="style_76"]') || input.parentElement.parentElement;
+    }
+
+    function businessLabelEl() {
+        const box = businessBox();
+        if (!box) return null;
+        const spans = $$('span', box).filter((s) => !s.querySelector('input'));
+        return spans.length ? spans[spans.length - 1] : null;
+    }
+
+    function setBusinessId(label, flash) {
+        const el = businessLabelEl();
+        if (!el) return;
+        businessId = label;
+        el.textContent = label;
+        el.style.display = 'block';
+        el.style.position = 'relative';
+        el.style.zIndex = '3';
+        el.style.color = 'rgb(3, 25, 56)';
+        hideHint(el, ['Please select']);
+        const help = document.getElementById('0_businessId_help');
+        if (help) help.style.display = 'none';
+        const box = businessBox();
+        if (box && flash) {
+            box.classList.add('rcp-flash');
+            setTimeout(() => box.classList.remove('rcp-flash'), 1200);
+        }
+        applyNextState();
+    }
+
+    function openBusinessMenu() {
+        const box = businessBox();
+        if (!box) return;
+        closeMenus();
+        const rect = box.getBoundingClientRect();
+        const menu = document.createElement('div');
+        menu.className = 'rcp-menu';
+        menu.style.left = rect.left + 'px';
+        menu.style.top = rect.bottom + 4 + 'px';
+        menu.style.width = rect.width + 'px';
+        BUSINESS_IDS.forEach((label) => {
+            const item = document.createElement('div');
+            item.className = 'rcp-menu-item' + (label === businessId ? ' is-active' : '');
+            item.textContent = label;
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                setBusinessId(label, false);
+                closeMenus();
+            });
+            menu.appendChild(item);
+        });
+        document.body.appendChild(menu);
+    }
+
     /* ---------- 模型类型 ---------- */
     function setModelType(label, flash) {
         const el = typeLabelEl();
         if (!el) return;
         currentType = label;
         el.textContent = label;
+        el.style.display = 'block';
         el.style.color = 'rgb(3, 25, 56)';
         hideHint(el, ['Please select', 'Please input']);
         const boxEl = typeBox();
@@ -135,12 +202,31 @@
         return $$('button').filter((b) => b.textContent.trim() === 'Next')[0] || null;
     }
 
+    function missingFields() {
+        const miss = [];
+        if (!businessId) miss.push('BusinessID');
+        const nameEl = document.getElementById('0_name');
+        if (!nameEl || !nameEl.value.trim()) miss.push('Model Name');
+        if (!currentType) miss.push('Model Type');
+        if (!uploadedExt) miss.push('Model File Upload');
+        if (!processorUploaded) miss.push('Variable Processor');
+        return miss;
+    }
+
     function applyNextState() {
         const btn = nextButton();
         if (!btn) return;
-        btn.classList.toggle('rcp-disabled', conflict);
-        btn.setAttribute('aria-disabled', conflict ? 'true' : 'false');
-        btn.title = conflict ? '模型类型与文件格式不一致，无法继续' : '';
+        const miss = missingFields();
+        const disabled = conflict || miss.length > 0;
+        btn.classList.toggle('rcp-disabled', disabled);
+        btn.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+        if (conflict) {
+            btn.title = '模型类型与文件格式不一致，无法继续';
+        } else if (miss.length) {
+            btn.title = '请先填写：' + miss.join('、');
+        } else {
+            btn.title = '';
+        }
     }
 
     function evaluateConflict() {
@@ -164,7 +250,8 @@
 
     /* ---------- 上传 ---------- */
     function uploadButtons() {
-        return $$('button').filter((b) => b.textContent.trim() === 'Click to upload');
+        // 用云上传图标识别上传控件，文件改名后仍能稳定命中
+        return $$('button').filter((b) => b.querySelector('svg[data-icon="cloud-upload"]'));
     }
 
     function errorHost(btn) {
@@ -216,6 +303,9 @@
     }
 
     function showFileName(btn, name) {
+        const btns = uploadButtons();
+        if (btns[0] === btn) modelFileName = name;
+        if (btns[1] === btn) processorName = name;
         const label = btn.lastElementChild || btn;
         label.textContent = name;
         label.style.width = 'auto';
@@ -282,11 +372,56 @@
                     return;
                 }
                 showFileName(btn, file.name);
+                processorUploaded = true;
+                applyNextState();
                 return;
             }
 
             showFileName(btn, input.files.length > 1 ? input.files.length + ' 个文件' : file.name);
         });
+    }
+
+    function syncView() {
+        if (businessId) {
+            const el = businessLabelEl();
+            if (el && el.textContent.trim() !== businessId) {
+                el.textContent = businessId;
+                el.style.display = 'block';
+                el.style.position = 'relative';
+                el.style.zIndex = '3';
+                el.style.color = 'rgb(3, 25, 56)';
+            }
+        }
+        if (currentType) {
+            const el = typeLabelEl();
+            if (el && el.textContent.trim() !== currentType) {
+                el.textContent = currentType;
+                el.style.display = 'block';
+                el.style.color = 'rgb(3, 25, 56)';
+            }
+        }
+        const btns = uploadButtons();
+        if (btns[0] && modelFileName && (btns[0].lastElementChild || {}).textContent !== modelFileName) {
+            showFileName(btns[0], modelFileName);
+        }
+        if (btns[1] && processorName && (btns[1].lastElementChild || {}).textContent !== processorName) {
+            showFileName(btns[1], processorName);
+        }
+        const nameEl = document.getElementById('0_name');
+        const nameHelp = document.getElementById('0_name_help');
+        if (nameEl && nameHelp) {
+            nameHelp.style.display = nameEl.value.trim() ? 'none' : 'block';
+        }
+        applyNextState();
+    }
+
+    let syncTimer = null;
+    function scheduleSync() {
+        if (syncTimer) return;
+        syncTimer = setTimeout(() => {
+            syncTimer = null;
+            syncView();
+        }, 120);
     }
 
     /* ---------- 启动 ---------- */
@@ -299,6 +434,21 @@
                 if ($('.rcp-menu')) closeMenus();
                 else openTypeMenu();
             });
+        }
+        const bBox = businessBox();
+        if (bBox && !bBox.dataset.rcpBound) {
+            bBox.dataset.rcpBound = '1';
+            bBox.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if ($('.rcp-menu')) closeMenus();
+                else openBusinessMenu();
+            });
+        }
+        const nameEl = document.getElementById('0_name');
+        if (nameEl && !nameEl.dataset.rcpBound) {
+            nameEl.dataset.rcpBound = '1';
+            nameEl.addEventListener('input', applyNextState);
+            nameEl.addEventListener('blur', applyNextState);
         }
         uploadButtons().forEach((btn, i) => {
             if (btn.dataset.rcpBound) return;
@@ -337,6 +487,10 @@
         document.addEventListener('DOMContentLoaded', boot);
     } else {
         boot();
+    }
+    if (!window.__rcpObserver) {
+        window.__rcpObserver = new MutationObserver(scheduleSync);
+        window.__rcpObserver.observe(document.body, { childList: true, subtree: true });
     }
     setTimeout(boot, 300);
     setTimeout(boot, 1200);
