@@ -51,6 +51,27 @@
         }
     }
 
+
+    function showTypeHint(msg) {
+        const el = typeLabelEl();
+        if (el) {
+            el.textContent = 'Please select';
+            el.style.color = 'rgba(0, 0, 0, 0.25)';
+        }
+        currentType = '';
+        const help = document.getElementById('0_type_help');
+        if (help) {
+            help.style.display = 'block';
+            const textEl = help.querySelector('div') || help;
+            textEl.style.display = 'block';
+            textEl.textContent = msg;
+            textEl.style.color = '#ff4d4f';
+            textEl.style.fontSize = '12px';
+            textEl.style.lineHeight = '16px';
+            textEl.style.whiteSpace = 'nowrap';
+        }
+    }
+
     function openTypeMenu() {
         const box = typeBox();
         if (!box) return;
@@ -157,8 +178,13 @@
                     return;
                 }
                 showFileName(btn, file.name);
-                if (ext === '.pkl' || ext === '.pickle') setModelType('Python 模型（.pkl / .pickle）', true);
-                if (ext === '.pmml') setModelType('PMML 模型（.pmml）', true);
+                if (ext === '.pkl' || ext === '.pickle') {
+                    setModelType('Python 模型（.pkl / .pickle）', true);
+                } else if (ext === '.pmml') {
+                    setModelType('PMML 模型（.pmml）', true);
+                } else if (ext === '.model' && currentType.indexOf('XGBoost') === -1 && currentType.indexOf('Linear Regression') === -1) {
+                    showTypeHint('请选择 XGBoost 或 Linear Regression');
+                }
                 return;
             }
 
