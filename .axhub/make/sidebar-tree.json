@@ -1,30 +1,12 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-12T06:06:08.903Z",
+  "updatedAt": "2026-11-03T06:44:46.895Z",
   "prototypes": [
     {
-      "id": "item-prototypes-ug-lms-special-list",
+      "id": "item-prototypes-risk-control-platform",
       "kind": "item",
-      "title": "ug lms special list",
-      "itemKey": "prototypes/ug-lms-special-list"
-    },
-    {
-      "id": "item:prototypes:annotation-demo",
-      "kind": "item",
-      "title": "标注演示",
-      "itemKey": "prototypes/annotation-demo"
-    },
-    {
-      "id": "item:prototypes:beginner-guide",
-      "kind": "item",
-      "title": "新手指导",
-      "itemKey": "prototypes/beginner-guide"
-    },
-    {
-      "id": "item:prototypes:touch-and-talk-annotation-demo",
-      "kind": "item",
-      "title": "批注演示",
-      "itemKey": "prototypes/touch-and-talk-annotation-demo"
+      "title": "risk control platform",
+      "itemKey": "prototypes/risk-control-platform"
     }
   ],
   "docs": [],
