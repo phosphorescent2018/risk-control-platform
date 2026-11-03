@@ -1,6 +1,6 @@
 /* DE 模型配置页 —— 交互层（在静态还原之上叠加，默认渲染与原页面一致） */
 (function () {
-    const MODEL_TYPES = ['XGBoost', 'Linear Regression', 'Python 模型（pickle）', 'PMML 模型'];
+    const MODEL_TYPES = ['XGBoost（.model）', 'Linear Regression（.model）', 'Python 模型（.pkl / .pickle）', 'PMML 模型（.pmml）'];
     const ALLOWED = ['.model', '.pkl', '.pickle', '.pmml'];
     const MAX_MB = 100;
 
@@ -157,8 +157,8 @@
                     return;
                 }
                 showFileName(btn, file.name);
-                if (ext === '.pkl' || ext === '.pickle') setModelType('Python 模型（pickle）', true);
-                if (ext === '.pmml') setModelType('PMML 模型', true);
+                if (ext === '.pkl' || ext === '.pickle') setModelType('Python 模型（.pkl / .pickle）', true);
+                if (ext === '.pmml') setModelType('PMML 模型（.pmml）', true);
                 return;
             }
 
