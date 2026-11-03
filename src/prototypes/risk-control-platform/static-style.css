@@ -1901,3 +1901,16 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helv
 }
 .rcp-flash { box-shadow: 0 0 0 2px #91caff; border-radius: 6px; transition: box-shadow .2s; }
 .rcp-has-file { color: rgb(3, 25, 56); }
+
+/* Next 冲突态 */
+.rcp-disabled {
+  opacity: .45 !important;
+  cursor: not-allowed !important;
+  filter: grayscale(.15);
+}
+@keyframes rcpShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+.rcp-shake { animation: rcpShake .35s ease; }

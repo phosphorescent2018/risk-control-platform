@@ -7,9 +7,11 @@
     const $ = (sel, root) => (root || document).querySelector(sel);
     const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
 
-    /* ---------- 模型类型下拉 ---------- */
     let currentType = '';
+    let uploadedExt = '';
+    let conflict = false;
 
+    /* ---------- 基础 ---------- */
     function typeBox() {
         const input = document.getElementById('0_type');
         return input ? input.closest('div[class*="style_90"]') : null;
@@ -20,6 +22,24 @@
         if (!box) return null;
         const spans = $$('span', box).filter((s) => !s.querySelector('input'));
         return spans.length ? spans[spans.length - 1] : null;
+    }
+
+    function typeHelp() {
+        return document.getElementById('0_type_help');
+    }
+
+    function writeTypeHelp(msg, show) {
+        const help = typeHelp();
+        if (!help) return;
+        help.style.display = show ? 'block' : 'none';
+        if (!show) return;
+        const textEl = help.querySelector('div') || help;
+        textEl.style.display = 'block';
+        textEl.textContent = msg;
+        textEl.style.color = '#ff4d4f';
+        textEl.style.fontSize = '12px';
+        textEl.style.lineHeight = '16px';
+        textEl.style.whiteSpace = 'nowrap';
     }
 
     function hideHint(el, texts) {
@@ -35,6 +55,27 @@
         });
     }
 
+    /* ---------- 类型与文件是否匹配 ---------- */
+    function expectedType(ext) {
+        if (ext === '.pkl' || ext === '.pickle') return 'Python 模型（.pkl / .pickle）';
+        if (ext === '.pmml') return 'PMML 模型（.pmml）';
+        return '';
+    }
+
+    function isCompatible(ext, type) {
+        if (!ext || !type) return true;
+        if (ext === '.model') return type.indexOf('XGBoost') !== -1 || type.indexOf('Linear Regression') !== -1;
+        return type === expectedType(ext);
+    }
+
+    function conflictMsg(ext) {
+        if (ext === '.model') return '文件为 .model，模型类型需选择 XGBoost 或 Linear Regression';
+        if (ext === '.pkl' || ext === '.pickle') return '文件为 ' + ext + '，模型类型需选择「Python 模型」';
+        if (ext === '.pmml') return '文件为 .pmml，模型类型需选择「PMML 模型」';
+        return '模型类型与文件格式不一致';
+    }
+
+    /* ---------- 模型类型 ---------- */
     function setModelType(label, flash) {
         const el = typeLabelEl();
         if (!el) return;
@@ -44,13 +85,11 @@
         hideHint(el, ['Please select', 'Please input']);
         const boxEl = typeBox();
         if (boxEl) boxEl.style.borderColor = '#d9d9d9';
-        const box = typeBox();
-        if (box && flash) {
-            box.classList.add('rcp-flash');
-            setTimeout(() => box.classList.remove('rcp-flash'), 1200);
+        if (boxEl && flash) {
+            boxEl.classList.add('rcp-flash');
+            setTimeout(() => boxEl.classList.remove('rcp-flash'), 1200);
         }
     }
-
 
     function showTypeHint(msg) {
         const el = typeLabelEl();
@@ -59,17 +98,7 @@
             el.style.color = 'rgba(0, 0, 0, 0.25)';
         }
         currentType = '';
-        const help = document.getElementById('0_type_help');
-        if (help) {
-            help.style.display = 'block';
-            const textEl = help.querySelector('div') || help;
-            textEl.style.display = 'block';
-            textEl.textContent = msg;
-            textEl.style.color = '#ff4d4f';
-            textEl.style.fontSize = '12px';
-            textEl.style.lineHeight = '16px';
-            textEl.style.whiteSpace = 'nowrap';
-        }
+        writeTypeHelp(msg, true);
     }
 
     function openTypeMenu() {
@@ -89,6 +118,7 @@
             item.addEventListener('click', (e) => {
                 e.stopPropagation();
                 setModelType(label, false);
+                evaluateConflict();
                 closeMenus();
             });
             menu.appendChild(item);
@@ -100,13 +130,44 @@
         $$('.rcp-menu').forEach((m) => m.remove());
     }
 
+    /* ---------- Next 按钮 ---------- */
+    function nextButton() {
+        return $$('button').filter((b) => b.textContent.trim() === 'Next')[0] || null;
+    }
+
+    function applyNextState() {
+        const btn = nextButton();
+        if (!btn) return;
+        btn.classList.toggle('rcp-disabled', conflict);
+        btn.setAttribute('aria-disabled', conflict ? 'true' : 'false');
+        btn.title = conflict ? '模型类型与文件格式不一致，无法继续' : '';
+    }
+
+    function evaluateConflict() {
+        if (uploadedExt && currentType && !isCompatible(uploadedExt, currentType)) {
+            conflict = true;
+            const box = typeBox();
+            if (box) box.style.borderColor = '#ff4d4f';
+            writeTypeHelp(conflictMsg(uploadedExt), true);
+        } else {
+            conflict = false;
+            const box = typeBox();
+            if (box) box.style.borderColor = '#d9d9d9';
+            if (uploadedExt && !currentType) {
+                writeTypeHelp('请选择 XGBoost 或 Linear Regression', true);
+            } else {
+                writeTypeHelp('', false);
+            }
+        }
+        applyNextState();
+    }
+
     /* ---------- 上传 ---------- */
     function uploadButtons() {
         return $$('button').filter((b) => b.textContent.trim() === 'Click to upload');
     }
 
     function errorHost(btn) {
-        // 找到该上传控件的行容器，在它下面放一行错误提示
         let node = btn;
         for (let i = 0; i < 5 && node.parentElement; i += 1) node = node.parentElement;
         let err = node.querySelector(':scope > .rcp-error');
@@ -178,13 +239,16 @@
                     return;
                 }
                 showFileName(btn, file.name);
-                if (ext === '.pkl' || ext === '.pickle') {
-                    setModelType('Python 模型（.pkl / .pickle）', true);
-                } else if (ext === '.pmml') {
-                    setModelType('PMML 模型（.pmml）', true);
-                } else if (ext === '.model' && currentType.indexOf('XGBoost') === -1 && currentType.indexOf('Linear Regression') === -1) {
-                    showTypeHint('请选择 XGBoost 或 Linear Regression');
+                uploadedExt = ext;
+                if (!currentType) {
+                    const expected = expectedType(ext);
+                    if (expected) {
+                        setModelType(expected, true);
+                    } else {
+                        showTypeHint('请选择 XGBoost 或 Linear Regression');
+                    }
                 }
+                evaluateConflict();
                 return;
             }
 
@@ -201,6 +265,7 @@
         });
     }
 
+    /* ---------- 启动 ---------- */
     function boot() {
         const box = typeBox();
         if (box && !box.dataset.rcpBound) {
@@ -216,6 +281,24 @@
             btn.dataset.rcpBound = '1';
             setupUpload(btn, i);
         });
+        const next = nextButton();
+        if (next && !next.dataset.rcpBound) {
+            next.dataset.rcpBound = '1';
+            next.addEventListener('click', (e) => {
+                if (!conflict) return;
+                e.preventDefault();
+                e.stopPropagation();
+                const boxEl = typeBox();
+                if (boxEl) {
+                    boxEl.classList.remove('rcp-shake');
+                    void boxEl.offsetWidth;
+                    boxEl.classList.add('rcp-shake');
+                    setTimeout(() => boxEl.classList.remove('rcp-shake'), 500);
+                }
+                writeTypeHelp(conflictMsg(uploadedExt), true);
+            }, true);
+        }
+        applyNextState();
     }
 
     document.addEventListener('click', closeMenus);
@@ -227,7 +310,6 @@
     } else {
         boot();
     }
-    // React 渲染后再兜一次
     setTimeout(boot, 300);
     setTimeout(boot, 1200);
 })();
